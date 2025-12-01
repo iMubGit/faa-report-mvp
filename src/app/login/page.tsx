@@ -1,3 +1,7 @@
+// src/app/login/page.tsx
+
+"use client" // <--- FIX 1: This directive makes it a Client Component
+
 import { supabase } from '@/lib/supabase'
 import { useState } from 'react'
 
@@ -7,12 +11,17 @@ export default function LoginPage() {
 
   async function signIn() {
     setMessage('Sending magic link…')
+    // Supabase OTP/Magic Link sign-in
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: 'https://faa-mvp.vercel.app/dashboard' }
     })
-    if (error) setMessage('Error: ' + error.message)
-    else setMessage('Check your email! Click the link to sign in.')
+    
+    if (error) {
+        setMessage('Error: ' + error.message)
+    } else {
+        setMessage('Check your email! Click the link to sign in.')
+    }
   }
 
   return (
@@ -36,6 +45,7 @@ export default function LoginPage() {
           Send Magic Link
         </button>
         
+        {/* Display success or error message */}
         {message && <p className="mt-6 text-center text-sm">{message}</p>}
       </div>
     </div>
