@@ -2,7 +2,7 @@
 
 "use client" // <--- FIX 1: This directive makes it a Client Component
 
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import { useState } from 'react'
 
 export default function LoginPage() {
