@@ -1,4 +1,4 @@
-// src/app/dashboard/Dashboard.tsx
+// src/app/dashboard/Dashboard.tsx  ← FINAL MVP VERSION
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -29,47 +29,52 @@ export default function Dashboard() {
     if (!file || !user) return
 
     setUploading(true)
-    setMessage('Uploading & processing…')
+    setMessage('Uploading & analyzing with AI…')
 
     try {
-      // 1. Upload to Supabase Storage
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
+
       const { error: uploadError } = await supabase.storage
         .from('uploads')
         .upload(fileName, file)
 
       if (uploadError) throw uploadError
 
-      // 2. Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('uploads')
         .getPublicUrl(fileName)
 
-      // 3. Create report + file rows
-      const { data: report, error: reportError } = await supabase
+      const { data: report } = await supabase
         .from('reports')
-        .insert({ user_id: user.id, status: 'processing' })
+        .insert({
+          user_id: user.id,
+          title: file.name,
+          status: 'processing'
+        })
         .select()
         .single()
+        .throwOnError()
 
-      if (reportError) throw reportError
-
-      const { error: fileError } = await supabase
+      await supabase
         .from('files')
         .insert({
           report_id: report.id,
           url: publicUrl,
           original_name: file.name,
-          file_type: file.type,
-          size: file.size
+          file_type: file.type
         })
 
-      if (fileError) throw fileError
+      // CALL TO YOUR AI WORKER (we'll add this in 2 minutes)
+      await fetch('/api/generate-report', {
+        method: 'POST',
+        body: JSON.stringify({ reportId: report.id, fileUrl: publicUrl }),
+        headers: { 'Content-Type': 'application/json' }
+      })
 
-      setMessage(`Success! File uploaded – AI will generate report shortly.`)
+      setMessage('Success! AI is generating your perfect FAA report… Check back in 30 seconds.')
     } catch (err: any) {
-      setMessage(`Error: ${err.message}`)
+      setMessage('Error: ' + err.message)
     } finally {
       setUploading(false)
     }
@@ -88,28 +93,29 @@ export default function Dashboard() {
             </button>
           </div>
 
-          <p className="text-xl text-gray-700 mb-12">
-            Welcome back, <span className="font-bold">{user.email}</span> ✈️
+          <p className="text-2xl text-gray-700 mb-12">
+            Welcome back, <span className="font-bold">{user.email}</span>{' '}
+            <span className="text-4xl">Plane</span>
           </p>
 
-          <div className="border-4 border-dashed border-indigo-400 rounded-3xl p-24 text-center bg-indigo-50 hover:bg-indigo-100 transition">
+          <div className="border-4 border-dashed border-indigo-400 rounded-3xl p-28 text-center bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer">
             <input
               type="file"
               accept=".pdf,.mp3,.wav,.m4a,.jpg,.png,.heic"
               onChange={handleFileUpload}
               disabled={uploading}
-              className="block w-full text-lg text-gray-900 file:mr-6 file:py-4 file:px-10 file:rounded-full file:border-0 file:text-white file:bg-gradient-to-r file:from-indigo-600 file:to-purple-600 hover:file:from-indigo-700 hover:file:to-purple-700 cursor-pointer"
+              className="block w-full text-lg text-gray-900 file:mr-6 file:py-5 file:px-12 file:rounded-full file:border-0 file:text-white file:bg-gradient-to-r file:from-indigo-600 file:to-purple-600 hover:file:from-indigo-700 hover:file:to-purple-700"
             />
-            <p className="mt-8 text-2xl text-gray-700 font-medium">
-              {uploading ? 'Uploading & processing…' : 'Drop inspection notes here'}
+            <p className="mt-10 text-3xl font-bold text-gray-800">
+              {uploading ? 'AI is working…' : 'Drop inspection notes here'}
             </p>
-            <p className="mt-4 text-gray-600">
-              PDF, photos, voice memos → AI generates perfect FAA report
+            <p className="mt-4 text-xl text-gray-600">
+              PDF • Photos • Voice memos → Perfect FAA report in seconds
             </p>
           </div>
 
           {message && (
-            <div className={`mt-8 p-6 rounded-xl text-center text-lg font-medium ${message.includes('Success') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+            <div className={`mt-10 p-8 rounded-2xl text-center text-xl font-semibold ${message.includes('Success') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
               {message}
             </div>
           )}
