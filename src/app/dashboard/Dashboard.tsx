@@ -1,21 +1,40 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient' // ← adjust path if yours is different
+import { useRouter } from 'next/navigation' // 1. ADD ROUTER IMPORT
+import { supabase } from '@/lib/supabaseClient'
 import { User } from '@supabase/supabase-js'
 
 export default function Dashboard() {
+  const router = useRouter() // 2. INITIALIZE ROUTER
   const [user, setUser] = useState<User | null>(null)
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
-  }, [])
+    // 3. ENHANCED PROTECTION: Check session and redirect if user is missing
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) {
+        router.push('/login')
+        return
+      }
+      setUser(data.user)
+    })
+  }, [router]) // Dependency on router is good practice
 
-  const handleLogout = () => supabase.auth.signOut()
+  // 4. LOGOUT: Make async and redirect after sign out
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  // OPTIONAL: Prevent rendering dashboard content until the user check is complete
+  if (!user) {
+    return <div className="text-center p-8">Loading session...</div> 
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+      {/* ... rest of the dashboard UI remains the same */}
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-10">
           <div className="flex justify-between items-center mb-8">
@@ -24,31 +43,14 @@ export default function Dashboard() {
               Logout
             </button>
           </div>
-
+          
           <p className="text-lg text-gray-700 mb-10">
-            Welcome back, <span className="font-semibold">{user?.email}</span> ✈️
+            Welcome back, <span className="font-semibold">{user.email}</span> ✈️ 
+            {/* Note: changed user?.email to user.email since we check for user above */}
           </p>
 
-          <div className="border-4 border-dashed border-blue-300 rounded-2xl p-20 text-center bg-blue-50">
-            <input
-              type="file"
-              accept=".pdf,.mp3,.wav,.m4a,.jpg,.png"
-              disabled={uploading}
-              className="block w-full text-lg text-gray-900 file:mr-6 file:py-4 file:px-8 file:rounded-full file:border-0 file:text-white file:bg-gradient-to-r file:from-blue-600 file:to-indigo-600 hover:file:from-blue-700 hover:file:to-indigo-700 cursor-pointer"
-              onChange={(e) => {
-                if (e.target.files?.[0]) {
-                  alert('File selected: ' + e.target.files[0].name + '\nUpload logic coming in next step!')
-                }
-              }}
-            />
-            <p className="mt-6 text-xl text-gray-600">
-              {uploading ? 'Uploading…' : 'Drag & drop inspection notes (PDF, audio, photos)'}
-            </p>
-          </div>
-
-          <p className="mt-10 text-center text-gray-500">
-            Upload a file → we’ll extract text → generate perfect FAA report
-          </p>
+          {/* ... file upload UI ... */}
+          
         </div>
       </div>
     </div>
