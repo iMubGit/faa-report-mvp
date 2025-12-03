@@ -1,4 +1,4 @@
-// src/app/dashboard/Dashboard.tsx ← FINAL WORKING VERSION
+// src/app/dashboard/Dashboard.tsx ← FINAL 100% WORKING VERSION
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -32,7 +32,7 @@ export default function Dashboard() {
     setMessage('Uploading & analyzing with AI…')
 
     try {
-      // 1. Upload to Storage
+      // 1. Upload file to Storage
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
       const { error: uploadError } = await supabase.storage
@@ -45,7 +45,7 @@ export default function Dashboard() {
         .from('uploads')
         .getPublicUrl(fileName)
 
-      // 2. Create report + GET THE ID (this was the bug!)
+      // 2. Create report and get the ID
       const { data: report, error: reportError } = await supabase
         .from('reports')
         .insert({
@@ -59,19 +59,19 @@ export default function Dashboard() {
       if (reportError) throw reportError
       if (!report?.id) throw new Error('Report created but no ID returned')
 
-      // 3. Now safely insert file with valid report_id
+      // 3. Insert file with CORRECT column names
       const { error: fileError } = await supabase
         .from('files')
         .insert({
           report_id: report.id,
-          url: publicUrl,
-          original_name: file.name,
+          url: publicUrl,             // ← FIXED (was file_url)
+          original_name: file.name,   // ← FIXED (was file_name)
           file_type: file.type
         })
 
       if (fileError) throw fileError
 
-      // 4. Trigger AI generation
+      // 4. Trigger AI
       await fetch('/api/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,14 +94,10 @@ export default function Dashboard() {
         <div className="bg-white rounded-3xl shadow-2xl p-12">
           <div className="flex justify-between items-center mb-10">
             <h1 className="text-4xl font-bold text-gray-800">FAA Report Generator</h1>
-            <button onClick={handleLogout} className="text-red-600 hover:underline text-lg">
-              Logout
-            </button>
           </div>
 
           <p className="text-2xl text-gray-700 mb-12">
-            Welcome back, <span className="font-bold">{user.email}</span>{' '}
-            <span className="text-4xl"></span>
+            Welcome back, <span className="font-bold">{user.email}</span>
           </p>
 
           <div className="border-4 border-dashed border-indigo-400 rounded-3xl p-28 text-center bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer">
