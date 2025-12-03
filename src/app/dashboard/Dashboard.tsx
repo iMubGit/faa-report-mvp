@@ -1,4 +1,4 @@
-// src/app/dashboard/Dashboard.tsx  ← FINAL MVP VERSION
+// src/app/dashboard/Dashboard.tsx ← FINAL WORKING VERSION
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -32,9 +32,9 @@ export default function Dashboard() {
     setMessage('Uploading & analyzing with AI…')
 
     try {
+      // 1. Upload to Storage
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
-
       const { error: uploadError } = await supabase.storage
         .from('uploads')
         .upload(fileName, file)
@@ -45,7 +45,8 @@ export default function Dashboard() {
         .from('uploads')
         .getPublicUrl(fileName)
 
-      const { data: report } = await supabase
+      // 2. Create report + GET THE ID (this was the bug!)
+      const { data: report, error: reportError } = await supabase
         .from('reports')
         .insert({
           user_id: user.id,
@@ -54,9 +55,12 @@ export default function Dashboard() {
         })
         .select()
         .single()
-        .throwOnError()
 
-      await supabase
+      if (reportError) throw reportError
+      if (!report?.id) throw new Error('Report created but no ID returned')
+
+      // 3. Now safely insert file with valid report_id
+      const { error: fileError } = await supabase
         .from('files')
         .insert({
           report_id: report.id,
@@ -65,11 +69,13 @@ export default function Dashboard() {
           file_type: file.type
         })
 
-      // CALL TO YOUR AI WORKER (we'll add this in 2 minutes)
+      if (fileError) throw fileError
+
+      // 4. Trigger AI generation
       await fetch('/api/generate-report', {
         method: 'POST',
-        body: JSON.stringify({ reportId: report.id, fileUrl: publicUrl }),
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId: report.id, fileUrl: publicUrl })
       })
 
       setMessage('Success! AI is generating your perfect FAA report… Check back in 30 seconds.')
