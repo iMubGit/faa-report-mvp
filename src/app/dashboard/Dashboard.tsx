@@ -1,4 +1,4 @@
-// src/app/dashboard/Dashboard.tsx ← FINAL 100% WORKING VERSION
+// src/app/dashboard/Dashboard.tsx ← FINAL BULLETPROOF VERSION
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -45,41 +45,29 @@ export default function Dashboard() {
         .from('uploads')
         .getPublicUrl(fileName)
 
-      // 2. Create report and get the ID
-      const { data: report, error: reportError } = await supabase
-        .from('reports')
-        .insert({
-          user_id: user.id,
-          title: file.name,
-          status: 'processing'
-        })
-        .select()
-        .single()
-
-      if (reportError) throw reportError
-      if (!report?.id) throw new Error('Report created but no ID returned')
-
-      // 3. Insert file with CORRECT column names
-      const { error: fileError } = await supabase
-        .from('files')
-        .insert({
-          report_id: report.id,
-          url: publicUrl,             // ← FIXED (was file_url)
-          original_name: file.name,   // ← FIXED (was file_name)
-          file_type: file.type
+      // 2. ATOMIC INSERT: report + file in one safe transaction
+      const { data: reportId, error: rpcError } = await supabase
+        .rpc('insert_report_with_file', {
+          p_user_id: user.id,
+          p_title: file.name,
+          p_file_url: publicUrl,
+          p_original_name: file.name,
+          p_file_type: file.type
         })
 
-      if (fileError) throw fileError
+      if (rpcError) throw rpcError
+      if (!reportId) throw new Error('Failed to create report')
 
-      // 4. Trigger AI
+      // 3. Trigger AI generation
       await fetch('/api/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reportId: report.id, fileUrl: publicUrl })
+        body: JSON.stringify({ reportId, fileUrl: publicUrl })
       })
 
       setMessage('Success! AI is generating your perfect FAA report… Check back in 30 seconds.')
     } catch (err: any) {
+      console.error('Upload error:', err)
       setMessage('Error: ' + err.message)
     } finally {
       setUploading(false)
@@ -94,6 +82,9 @@ export default function Dashboard() {
         <div className="bg-white rounded-3xl shadow-2xl p-12">
           <div className="flex justify-between items-center mb-10">
             <h1 className="text-4xl font-bold text-gray-800">FAA Report Generator</h1>
+            <button onClick={handleLogout} className="text-red-600 hover:underline text-lg">
+              Logout
+            </button>
           </div>
 
           <p className="text-2xl text-gray-700 mb-12">
