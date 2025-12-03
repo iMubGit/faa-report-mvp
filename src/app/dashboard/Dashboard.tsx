@@ -101,7 +101,7 @@ export default function Dashboard() {
 
           <p className="text-2xl text-gray-700 mb-12">
             Welcome back, <span className="font-bold">{user.email}</span>{' '}
-            <span className="text-4xl">Plane</span>
+            <span className="text-4xl"></span>
           </p>
 
           <div className="border-4 border-dashed border-indigo-400 rounded-3xl p-28 text-center bg-indigo-50 hover:bg-indigo-100 transition cursor-pointer">
