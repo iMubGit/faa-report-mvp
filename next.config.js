@@ -1,1 +1,1 @@
-import { NextConfig } from "next"; const nextConfig: NextConfig = { reactStrictMode: true }; export default nextConfig; 
+import { NextConfig } from "next"; const nextConfig = { reactStrictMode: true }; export default nextConfig; 
